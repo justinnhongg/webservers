@@ -6,18 +6,26 @@
 
 #define PORT 8080
 
-const char *response =
-    "HTTP/1.1 200 OK\r\n"
-    "Content-Type: text/html\r\n"
-    "Connection: close\r\n"
-    "\r\n"
-    "<!DOCTYPE html><html><body><h1>Hello, World!</h1></body></html>";
-
 int main() {
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
+    const char *html = "<!DOCTYPE html><html><body><h1>Hello, World!</h1></body></html>";
+
+    char response[256];
+ 
+    snprintf(response, sizeof(response),
+    
+       "HTTP/1.1 200 OK\r\n"
+       "Content-Type: text/html\r\n"
+       "Content-Length: %lu\r\n"
+       "Connection: close\r\n"
+       "\r\n"
+       "%s",   
+       strlen(html), html);
+    
+       
     // 1. Create socket
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
