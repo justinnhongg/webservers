@@ -11,8 +11,7 @@ run:
 	docker logs -f $(CONTAINER_NAME)
 
 stop:
-	docker stop $(CONTAINER_NAME)
-	docker rm $(CONTAINER_NAME)
+	docker rm -f $(CONTAINER_NAME)
 
 logs:
 	docker logs -f $(CONTAINER_NAME)
