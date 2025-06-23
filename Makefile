@@ -1,6 +1,6 @@
 IMAGE_NAME = webserver
 CONTAINER_NAME = webserver_container
-PORT = 8080
+PORT = 4433
 
 build:
 	docker build -t $(IMAGE_NAME) .

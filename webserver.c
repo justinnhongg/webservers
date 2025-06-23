@@ -14,7 +14,7 @@
 #define BUFFER_SIZE 4096
 
 //function declarations 
-void send_response(int client_socket, const char *filepath);
+void send_response(SSL *ssl, const char *filepath);
 void init_openssl();
 void cleanup_openssl();
 SSL_CTX *create_context();
@@ -31,7 +31,7 @@ int main() {
     //Intitializing OpenSSL
     init_openssl(); //loads SSL algorithms and error strings
     SSL_CTX *ctx = create_context(); //creates a new tls/ssl context
-    configure_context(ctx; // loads cert and key
+    configure_context(ctx); // loads cert and key
     
     //creating server socket
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
