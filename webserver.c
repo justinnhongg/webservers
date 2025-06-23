@@ -26,10 +26,10 @@ int main() {
     necessary for functions like bind(), connect() or accept() since functions are 
     protocol agnostic. */
     struct sockaddr_in address; 
-
+    socklen_t addrlen = sizeof(address);
+    
     //Intitializing OpenSSL
     init_openssl(); //loads SSL algorithms and error strings
-
     SSL_CTX *ctx = create_context(); //creates a new tls/ssl context
     configure_context(ctx; // loads cert and key
     
@@ -64,31 +64,52 @@ int main() {
         struct sockaddr_in client_addr; //client_addr only used fo each inidvidual connection
         socklen_t len = sizeof(client_addr);
         
-        int client_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
+        int client_socket = accept(server_fd, (struct sockaddr *)&client_addr, &len);
         if (client_socket < 0) {
             perror("accept failed");
             continue;
         }
 
-        int read_size = read(client_socket, buffer, BUFFER_SIZE - 1);
-        buffer[read_size] = '\0';
+        SSL *ssl = SSL_new(ctx); /*creates a new SSL connection object based on configurations
+        stored in ctx which refers to ssl context which is a struct that holds configs for
+        SSL/TLS connections.*/
+        SSL_set_fd(ssl, client_socket); /*Links the SSL object to the TCP socket (client_socket)
+        that you got from accept()*/
+        
+        /* starts the TLS/SSL handshake with the client on the socket that ssl is attached too.
+        This is where OpenSSL decides the encryption protocol and verifies certificates and
+        establishes keys*/
+        if (SSL_accept(ssl) <= 0) {
+            ERR_print_errors_fp(stderr); //prints descriptor of error to stderr
+            SSL_free(ssl); //frees SSL object and memory associated with it
+            close(client_socket); //closes the TCP socket
+            continue; //skips the loop and goes back to listening
+        }
 
-        // Parse HTTP GET request
-        char method[8], path[1024];
-        sscanf(buffer, "%s %s", method, path);
+        char buffer[BUFFER_SIZE]; //allocates buffer in mem to hold incoming client data
+        int read_size = SSL_read(ssl, buffer, sizeof(buffer) - 1);/*reads the data from 
+        client through the TLS session, decrpts it and stores it in buffer. The -1 ensures
+        space for \0 at the end. read_size holds the number of bytes read which can differ
+        from buffersize*/
+        buffer[read_size] = '\0'; //adds \9 at the end of data to make the buffer a valid C string
 
-        // Remove leading slash
-        char *file_to_serve = path + 1;
-        if (strlen(file_to_serve) == 0)
+        char method[8], path[1024]; //method will hold the HTTP request method and path holds requested url path
+        sscanf(buffer, "%s %s", method, path); //parses buffer tokens that have HTTP request line into method and path
+        char *file_to_serve = path + 1; //skips the / in the path string
+        if (strlen(file_to_serve) == 0) // if path is just root of website then index.html (homepage) is served by default
             file_to_serve = "index.html";
 
-        send_response(client_socket, file_to_serve);
-        close(client_socket);
+        send_response(ssl, file_to_serve); //sents the requested file back to client over SSL connection
+
+        SSL_shutdown(ssl); /*closes the SSL connection by sending a "close_notify" alert to the
+        client. This ensures both sides properly finish the TLS session*/
+        SSL_free(ssl); //frees memory for the SSL connection to avoid memory leaks
+        close(client_socket); //closes underlying TCP socket ending the non-SSL connection
     }
 
     return 0;
 }
-void send_response(int client_socket, const char *filepath) {
+void send_response(SSL *ssl, const char *filepath) {
     char buffer[BUFFER_SIZE];
     FILE *file = fopen(filepath, "r");
 
@@ -99,12 +120,12 @@ void send_response(int client_socket, const char *filepath) {
                                 "Content-Type: text/plain\r\n"
                                 "Connection: close\r\n\r\n"
                                 "404 Not Found";
-        write(client_socket, not_found, strlen(not_found));
+        SSL_write(ssl, not_found, strlen(not_found));
         return;
     }
 
     // Get file size
-    fseek(file, 0, SEEK_END);
+    fseek(file, 0, SEEK_END); //moves file pointer to end of the file (0)
     long filesize = ftell(file);
     rewind(file);
 
