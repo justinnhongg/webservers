@@ -125,24 +125,50 @@ void send_response(SSL *ssl, const char *filepath) {
     }
 
     // Get file size
-    fseek(file, 0, SEEK_END); //moves file pointer to end of the file (0)
+    fseek(file, 0, SEEK_END);
     long filesize = ftell(file);
     rewind(file);
 
-    // Send headers
     snprintf(buffer, sizeof(buffer),
              "HTTP/1.1 200 OK\r\n"
              "Content-Length: %ld\r\n"
-             "Content-Type: text/html\r\n"  // You can improve MIME type detection
+             "Content-Type: text/html\r\n"
              "Connection: close\r\n\r\n", filesize);
-    write(client_socket, buffer, strlen(buffer));
+    SSL_write(ssl, buffer, strlen(buffer));
 
-    // Send file content
     size_t n;
     while ((n = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-        write(client_socket, buffer, n);
+        SSL_write(ssl, buffer, n);
     }
 
     fclose(file);
 }
 
+void init_openssl() {
+    SSL_load_error_strings();
+    OpenSSL_add_ssl_algorithms();
+}
+
+void cleanup_openssl() {
+    EVP_cleanup();
+}
+
+SSL_CTX *create_context() {
+    const SSL_METHOD *method = TLS_server_method();
+    SSL_CTX *ctx = SSL_CTX_new(method);
+    if (!ctx) {
+        perror("Unable to create SSL context");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    return ctx;
+}
+
+void configure_context(SSL_CTX *ctx) {
+    // Change these paths to your actual cert/key
+    if (SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM) <= 0 ||
+        SSL_CTX_use_PrivateKey_file(ctx, "key.pem", SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+}
