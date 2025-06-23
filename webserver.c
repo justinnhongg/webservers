@@ -117,6 +117,16 @@ void send_response(SSL *ssl, const char *filepath) {
     char buffer[BUFFER_SIZE];
     FILE *file = fopen(filepath, "r");
 
+    const char *content_type = "text/html"; // default
+    if (strstr(filepath, ".js"))
+        content_type = "application/javascript";
+    else if (strstr(filepath, ".css"))
+        content_type = "text/css";
+    else if (strstr(filepath, ".png"))
+        content_type = "image/png";
+    else if (strstr(filepath, ".jpg") || strstr(filepath, ".jpeg"))
+    content_type = "image/jpeg";
+
     if (file == NULL) {
         // File not found
         const char *not_found = "HTTP/1.1 404 Not Found\r\n"
