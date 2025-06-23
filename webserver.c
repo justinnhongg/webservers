@@ -95,9 +95,13 @@ int main() {
 
         char method[8], path[1024]; //method will hold the HTTP request method and path holds requested url path
         sscanf(buffer, "%s %s", method, path); //parses buffer tokens that have HTTP request line into method and path
-        char *file_to_serve = path + 1; //skips the / in the path string
-        if (strlen(file_to_serve) == 0) // if path is just root of website then index.html (homepage) is served by default
-            file_to_serve = "index.html";
+        char file_to_serve[1024];
+        snprintf(file_to_serve, sizeof(file_to_serve), "webroot/%s", path + 1);
+
+        if (strlen(path + 1) == 0)
+            snprintf(file_to_serve, sizeof(file_to_serve), "webroot/index.html");        
+        else
+            snprintf(file_to_serve, sizeof(file_to_serve), "webroot/%s", path + 1);
 
         send_response(ssl, file_to_serve); //sents the requested file back to client over SSL connection
 
@@ -172,3 +176,4 @@ void configure_context(SSL_CTX *ctx) {
         exit(EXIT_FAILURE);
     }
 }
+
